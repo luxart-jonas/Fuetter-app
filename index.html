@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>Kunstwerk Verwaltung</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0f0e0c;
+    --surface: #1a1814;
+    --border: #2e2b26;
+    --gold: #c9a84c;
+    --gold-dim: #7a6530;
+    --text: #e8e0d0;
+    --muted: #6b6358;
+    --red: #c0392b;
+    --green: #4ade80;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    padding: 0 0 80px 0;
+  }
+
+  header {
+    padding: 32px 32px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 24px;
+    font-weight: 400;
+    color: var(--gold);
+    letter-spacing: 0.02em;
+  }
+  header span {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+  }
+  .tab {
+    padding: 16px 0;
+    margin-right: 32px;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+  .pane { display: none; padding: 32px; max-width: 640px; }
+  .pane.active { display: block; }
+
+  /* Upload Zone */
+  .upload-zone {
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    padding: 0;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 4/3;
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .upload-zone:active { border-color: var(--gold); }
+  .upload-zone input[type=file] {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    opacity: 0; cursor: pointer; font-size: 16px;
+  }
+  .upload-zone img {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: contain;
+  }
+  .upload-zone .placeholder { color: var(--muted); font-size: 13px; pointer-events: none; }
+  .upload-zone .placeholder .icon { font-size: 32px; margin-bottom: 8px; display: block; }
+
+  /* Form */
+  .field { margin-bottom: 20px; }
+  .field label {
+    display: block; font-size: 11px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 8px;
+  }
+  .field input, .field textarea {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 16px; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 300;
+    outline: none; transition: border-color 0.2s; resize: vertical;
+    -webkit-appearance: none;
+  }
+  .field input:focus, .field textarea:focus { border-color: var(--gold-dim); }
+  .field textarea { min-height: 100px; }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 12px; margin-top: 8px; }
+  .btn {
+    border: none; border-radius: 100px; padding: 12px 28px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    cursor: pointer; transition: opacity 0.2s; -webkit-appearance: none;
+  }
+  .btn-gold { background: var(--gold); color: #000; font-weight: 500; }
+  .btn-outline { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btn:disabled { opacity: 0.3; cursor: default; }
+  .btn-gold:not(:disabled):active { opacity: 0.8; }
+
+  /* Status */
+  #status-msg {
+    margin-top: 16px; font-size: 13px; min-height: 20px;
+    color: var(--muted); transition: color 0.3s;
+  }
+  #status-msg.ok { color: var(--green); }
+  #status-msg.err { color: var(--red); }
+
+  /* Spinner */
+  .spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid var(--border); border-top-color: var(--gold);
+    border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Galerie */
+  #gallery-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px;
+  }
+  .gallery-item {
+    background: var(--surface); border-radius: 8px; overflow: hidden;
+    border: 1px solid var(--border); cursor: pointer; transition: border-color 0.2s;
+  }
+  .gallery-item:active { border-color: var(--gold); }
+  .gallery-item img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
+  .gallery-item .info { padding: 10px 12px; }
+  .gallery-item .title { font-family: 'Playfair Display', serif; font-size: 13px; margin-bottom: 2px; }
+  .gallery-item .artist { font-size: 11px; color: var(--muted); }
+  .gallery-item .del-btn {
+    display: block; width: 100%; margin-top: 8px; padding: 6px;
+    background: transparent; border: 1px solid #3a1a1a; border-radius: 6px;
+    color: var(--red); font-size: 11px; cursor: pointer; text-align: center;
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+
+  #gallery-empty { color: var(--muted); font-size: 14px; padding: 40px 0; }
+
+  /* KI Badge */
+  .ki-badge {
+    display: inline-block; font-size: 10px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--gold-dim); border: 1px solid var(--gold-dim);
+    border-radius: 4px; padding: 2px 6px; margin-left: 8px; vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Kunstwerk Verwaltung</h1>
+  <span id="count-label">— Werke</span>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-tab="add">Hinzufügen</div>
+  <div class="tab" data-tab="gallery">Galerie</div>
+</div>
+
+<!-- HINZUFÜGEN -->
+<div class="pane active" id="pane-add">
+
+  <div class="upload-zone" id="upload-zone">
+    <div class="placeholder">
+      <span class="icon">🖼️</span>
+      Kunstwerk tippen zum Auswählen
+    </div>
+    <input type="file" id="img-input" accept="*/*">
+  </div>
+
+  <div class="btn-row" style="margin-bottom:24px; margin-top:-12px;">
+    <button class="btn btn-outline" id="ki-btn" disabled>
+      ✦ KI erkennen
+    </button>
+  </div>
+
+  <div class="field">
+    <label>Titel</label>
+    <input type="text" id="f-titel" placeholder="z.B. Der ungläubige Thomas">
+  </div>
+  <div class="field">
+    <label>Künstler / Autor</label>
+    <input type="text" id="f-artist" placeholder="z.B. Caravaggio">
+  </div>
+  <div class="field">
+    <label>Jahr (optional)</label>
+    <input type="text" id="f-year" placeholder="z.B. 1601–1602">
+  </div>
+  <div class="field">
+    <label>Funfact <span class="ki-badge">KI</span></label>
+    <textarea id="f-funfact" placeholder="Interessante Details, Hintergrund, Besonderheiten..."></textarea>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-gold" id="save-btn" disabled>Speichern</button>
+    <button class="btn btn-outline" id="reset-btn">Zurücksetzen</button>
+  </div>
+  <div id="status-msg"></div>
+</div>
+
+<!-- GALERIE -->
+<div class="pane" id="pane-gallery">
+  <div id="gallery-empty">Noch keine Werke gespeichert.</div>
+  <div id="gallery-grid"></div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://ormpszktwwiahjooukjk.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ybXBzemt0d3dpYWhqb291a2prIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4NzM5NTAsImV4cCI6MjA5NjQ0OTk1MH0.Jz4rKTlrvRbfdxS1e8fRkwXeD3CJsITeC6Q4lDBjfCc';
+const ANTHROPIC_KEY = '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';
+const BUCKET = 'kunstwerke';
+const TABLE  = 'kunstwerke';
+
+let currentFile = null;
+let currentBase64 = null;
+
+// Tabs
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('pane-' + tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'gallery') loadGallery();
+  });
+});
+
+// Bild auswählen
+document.getElementById('img-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  currentFile = file;
+  const url = URL.createObjectURL(file);
+  const zone = document.getElementById('upload-zone');
+  let img = zone.querySelector('img');
+  if (!img) { img = document.createElement('img'); zone.appendChild(img); }
+  img.src = url;
+  zone.querySelector('.placeholder').style.display = 'none';
+  document.getElementById('ki-btn').disabled = false;
+  document.getElementById('save-btn').disabled = false;
+
+  // Base64 für KI vorbereiten
+  const reader = new FileReader();
+  reader.onload = ev => {
+    currentBase64 = ev.target.result.split(',')[1];
+  };
+  reader.readAsDataURL(file);
+});
+
+// KI erkennen
+document.getElementById('ki-btn').addEventListener('click', async () => {
+  if (!currentBase64) return;
+  const btn = document.getElementById('ki-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> KI analysiert…';
+  setStatus('', '');
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-client-side-api-key-disclosure': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: currentFile.type || 'image/jpeg', data: currentBase64 }
+            },
+            {
+              type: 'text',
+              text: `Analysiere dieses Kunstwerk und antworte NUR mit folgendem JSON, kein Text davor oder danach:
+{
+  "titel": "Titel des Werks",
+  "artist": "Künstler Name",
+  "year": "Entstehungsjahr oder Zeitraum",
+  "funfact": "Ein interessanter Funfact in 2-4 Sätzen. Beschreibe was zu sehen ist, warum das Werk berühmt ist, und nenne eine überraschende Detail. Schreibe direkt und lebendig, nicht akademisch."
+}
+Falls du das Werk nicht erkennst, gib trotzdem deine beste Einschätzung ab basierend auf Stil und Epoche.`
+            }
+          ]
+        }]
+      })
+    });
+
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+    const clean = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+
+    if (parsed.titel) document.getElementById('f-titel').value = parsed.titel;
+    if (parsed.artist) document.getElementById('f-artist').value = parsed.artist;
+    if (parsed.year) document.getElementById('f-year').value = parsed.year;
+    if (parsed.funfact) document.getElementById('f-funfact').value = parsed.funfact;
+    setStatus('✓ KI hat das Werk erkannt — bitte prüfen und ggf. korrigieren', 'ok');
+  } catch(err) {
+    setStatus('KI-Fehler: ' + err.message, 'err');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '✦ KI erkennen';
+});
+
+// Speichern
+document.getElementById('save-btn').addEventListener('click', async () => {
+  if (!currentFile) return;
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  setStatus('Bild wird hochgeladen…', '');
+
+  try {
+    // 1. Bild in Supabase Storage hochladen
+    const ext = currentFile.name.split('.').pop() || 'jpg';
+    const filename = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+
+    const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${filename}`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': currentFile.type || 'image/jpeg'
+      },
+      body: currentFile
+    });
+
+    if (!uploadRes.ok) {
+      const err = await uploadRes.text();
+      throw new Error('Upload: ' + err);
+    }
+
+    const imageUrl = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${filename}`;
+
+    // 2. Metadaten in DB speichern
+    setStatus('Metadaten werden gespeichert…', '');
+    const dbRes = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({
+        titel: document.getElementById('f-titel').value || 'Unbekannt',
+        artist: document.getElementById('f-artist').value || 'Unbekannt',
+        year: document.getElementById('f-year').value || '',
+        funfact: document.getElementById('f-funfact').value || '',
+        image_url: imageUrl,
+        filename: filename
+      })
+    });
+
+    if (!dbRes.ok) {
+      const err = await dbRes.text();
+      throw new Error('DB: ' + err);
+    }
+
+    setStatus('✓ Kunstwerk gespeichert!', 'ok');
+    resetForm();
+    updateCount();
+  } catch(err) {
+    setStatus('Fehler: ' + err.message, 'err');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = 'Speichern';
+});
+
+// Reset
+document.getElementById('reset-btn').addEventListener('click', resetForm);
+
+function resetForm() {
+  currentFile = null; currentBase64 = null;
+  document.getElementById('img-input').value = '';
+  document.getElementById('f-titel').value = '';
+  document.getElementById('f-artist').value = '';
+  document.getElementById('f-year').value = '';
+  document.getElementById('f-funfact').value = '';
+  const zone = document.getElementById('upload-zone');
+  const img = zone.querySelector('img');
+  if (img) img.remove();
+  zone.querySelector('.placeholder').style.display = '';
+  document.getElementById('ki-btn').disabled = true;
+  document.getElementById('save-btn').disabled = true;
+  setStatus('', '');
+}
+
+function setStatus(msg, type) {
+  const el = document.getElementById('status-msg');
+  el.textContent = msg;
+  el.className = type;
+}
+
+// Galerie laden
+async function loadGallery() {
+  const grid = document.getElementById('gallery-grid');
+  const empty = document.getElementById('gallery-empty');
+  grid.innerHTML = '';
+  empty.textContent = 'Wird geladen…';
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?select=*&order=created_at.desc`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    });
+    const data = await res.json();
+
+    if (!data.length) { empty.textContent = 'Noch keine Werke gespeichert.'; return; }
+    empty.textContent = '';
+
+    data.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'gallery-item';
+      div.innerHTML = `
+        <img src="${item.image_url}" loading="lazy" alt="${item.titel}">
+        <div class="info">
+          <div class="title">${item.titel}</div>
+          <div class="artist">${item.artist}${item.year ? ' · ' + item.year : ''}</div>
+          <button class="del-btn" data-id="${item.id}" data-filename="${item.filename}">Löschen</button>
+        </div>`;
+      grid.appendChild(div);
+    });
+
+    grid.querySelectorAll('.del-btn').forEach(btn => {
+      btn.addEventListener('click', async e => {
+        e.stopPropagation();
+        if (!confirm('Werk wirklich löschen?')) return;
+        await deleteItem(btn.dataset.id, btn.dataset.filename);
+        loadGallery(); updateCount();
+      });
+    });
+  } catch(err) {
+    empty.textContent = 'Fehler beim Laden: ' + err.message;
+  }
+}
+
+async function deleteItem(id, filename) {
+  await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${filename}`, {
+    method: 'DELETE',
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
+  await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?id=eq.${id}`, {
+    method: 'DELETE',
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
+}
+
+async function updateCount() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?select=id`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Prefer': 'count=exact', 'Range': '0-0' }
+    });
+    const count = res.headers.get('content-range')?.split('/')[1] || '?';
+    document.getElementById('count-label').textContent = count + ' Werke';
+  } catch {}
+}
+
+updateCount();
+</script>
+</body>
+</html>

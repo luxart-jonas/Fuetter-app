@@ -191,6 +191,7 @@
 <div class="tabs">
   <div class="tab active" data-tab="add">Hinzufügen</div>
   <div class="tab" data-tab="gallery">Galerie</div>
+  <div class="tab" data-tab="settings">Einstellungen</div>
 </div>
 
 <!-- HINZUFÜGEN -->
@@ -240,10 +241,22 @@
   <div id="gallery-grid"></div>
 </div>
 
+<!-- EINSTELLUNGEN -->
+<div class="pane" id="pane-settings">
+  <div class="field">
+    <label>Anthropic API Key</label>
+    <input type="password" id="f-apikey" placeholder="sk-ant-api03-…" autocomplete="off" spellcheck="false">
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-gold" id="save-key-btn">Key speichern</button>
+  </div>
+  <div id="key-status" style="margin-top:16px;font-size:13px;color:var(--muted);"></div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://ormpszktwwiahjooukjk.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ybXBzemt0d3dpYWhqb291a2prIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4NzM5NTAsImV4cCI6MjA5NjQ0OTk1MH0.Jz4rKTlrvRbfdxS1e8fRkwXeD3CJsITeC6Q4lDBjfCc';
-const ANTHROPIC_KEY = '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';
+let ANTHROPIC_KEY = localStorage.getItem('anthropic_key') || '';
 const BUCKET = 'kunstwerke';
 const TABLE  = 'kunstwerke';
 
@@ -258,7 +271,23 @@ document.querySelectorAll('.tab').forEach(tab => {
     tab.classList.add('active');
     document.getElementById('pane-' + tab.dataset.tab).classList.add('active');
     if (tab.dataset.tab === 'gallery') loadGallery();
+    if (tab.dataset.tab === 'settings') {
+      document.getElementById('f-apikey').value = ANTHROPIC_KEY;
+      document.getElementById('key-status').textContent = ANTHROPIC_KEY ? '✓ Key ist gespeichert' : 'Noch kein Key eingetragen';
+    }
   });
+});
+
+// Key speichern
+document.getElementById('save-key-btn').addEventListener('click', () => {
+  const key = document.getElementById('f-apikey').value.trim();
+  if (!key.startsWith('sk-')) {
+    document.getElementById('key-status').textContent = '⚠ Das sieht nicht wie ein gültiger Key aus';
+    return;
+  }
+  ANTHROPIC_KEY = key;
+  localStorage.setItem('anthropic_key', key);
+  document.getElementById('key-status').textContent = '✓ Key gespeichert';
 });
 
 // Bild auswählen
